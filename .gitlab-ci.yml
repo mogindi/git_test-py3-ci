@@ -1,0 +1,69 @@
+stages:
+  - build
+  - run
+  - test
+  - push
+  - cleanup
+  - build master
+  - deploy master
+
+# non-master branch #
+
+build:
+  stage: build
+  except:
+    - master
+  script:
+    - docker build -t helloworld:$CI_COMMIT_BRANCH --add-host localhost:$(dig +short host.docker.internal) --build-arg BRANCH=$CI_COMMIT_BRANCH .
+
+run:
+  stage: run
+  except:
+    - master
+  script:
+    - docker run -d -p 22222:22222 --name helloworld-ci helloworld:$CI_COMMIT_BRANCH
+
+test:
+  stage: test
+  except:
+    - master
+  script:
+    - curl localhost:22222
+  when: delayed
+  start_in: 5 seconds
+
+push:
+  stage: push
+  except:
+    - master
+  script:
+    - git config --global user.email "gitlab@gitlab"
+    - git config --global user.name "gitlab-ci"
+    - git push http://gitlab-ci:72fQ-59iQCrCnbRBGPZK@localhost:12345/root/git_test.git HEAD:master
+
+cleanup:
+  stage: cleanup
+  except:
+    - master
+  script:
+    - docker rm -f helloworld-ci
+    - docker rmi -f helloworld:$CI_COMMIT_BRANCH
+  when: always
+  allow_failure: true
+
+# master branch #
+
+build master:
+  stage: build master
+  only:
+    - master
+  script:
+    - docker build -t localhost:5000/helloworld --add-host localhost:$(dig +short host.docker.internal) .
+    - docker push localhost:5000/helloworld
+
+deploy master:
+  stage: deploy master
+  only:
+    - master
+  script:
+    - kubectl apply -f service.yml -f deployment.yml
