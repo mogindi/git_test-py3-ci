@@ -66,4 +66,5 @@ deploy master:
   only:
     - master
   script:
-    - kubectl apply -f service.yml -f deployment.yml
+    - kubectl create configmap prometheus --from-file=CD/prometheus-config.yml --dry-run=client -o yaml | kubectl apply -f -
+    - kubectl apply -f CD/helloworld/ -f CD/prometheus/ -f CD/blackbox-exporter/
